@@ -37,10 +37,18 @@ jobs:
       - name: Install
         run: npm install --no-audit --no-fund
 
+      - name: Validate build env
+        run: test -n "$VITE_DIRECTUS_URL"
+        env:
+          VITE_DIRECTUS_URL: ${{ vars.VITE_DIRECTUS_URL }}
+
       - name: Build
         run: npm run build
         env:
           GITHUB_PAGES: "true"
+          VITE_APP_ENV: "prod"
+          VITE_APP_VERSION: ${{ github.sha }}
+          VITE_DIRECTUS_URL: ${{ vars.VITE_DIRECTUS_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
