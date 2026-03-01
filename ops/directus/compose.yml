@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?err}
+      POSTGRES_USER: ${POSTGRES_USER:?err}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?err}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?err}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?err}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?err}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?err}
+      MINIO_BUCKET: ${MINIO_BUCKET:?err}
+    entrypoint:
+      [
+        "/bin/sh",
+        "-lc",
+        "until mc alias set local http://minio:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\"; do sleep 2; done; mc mb -p \"local/$MINIO_BUCKET\" || true; mc anonymous set none \"local/$MINIO_BUCKET\" || true;",
+      ]
+
+  gotenberg:
+    image: ${GOTENBERG_IMAGE:-gotenberg/gotenberg:8}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+  directus:
+    image: ${DIRECTUS_IMAGE:-directus/directus:11}
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - minio-init
+      - gotenberg
+    ports:
+      - "8055:8055"
+    environment:
+      KEY: ${DIRECTUS_KEY:?err}
+      SECRET: ${DIRECTUS_SECRET:?err}
+
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:?err}
+      DB_USER: ${POSTGRES_USER:?err}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?err}
+
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?err}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?err}
+
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL:?err}
+
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: ${DIRECTUS_CORS_ORIGIN:?err}
+
+      STORAGE_LOCATIONS: s3
+      STORAGE_S3_DRIVER: s3
+      STORAGE_S3_KEY: ${MINIO_ROOT_USER:?err}
+      STORAGE_S3_SECRET: ${MINIO_ROOT_PASSWORD:?err}
+      STORAGE_S3_BUCKET: ${MINIO_BUCKET:?err}
+      STORAGE_S3_REGION: us-east-1
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_FORCE_PATH_STYLE: "true"
+      STORAGE_S3_ACL: private
+
+    volumes:
+      - ./extensions:/directus/extensions
+
+volumes:
+  postgres_data:
+  minio_data:
+
