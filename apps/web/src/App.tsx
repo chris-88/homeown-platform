@@ -3,11 +3,15 @@ import MarketingLayout from "@/layouts/MarketingLayout";
 import AuthLayout from "@/layouts/AuthLayout";
 import PortalLayout from "@/layouts/PortalLayout";
 import HomePage from "@/pages/HomePage";
+import HowItWorksPage from "@/pages/HowItWorksPage";
+import FaqPage from "@/pages/FaqPage";
+import ContactPage from "@/pages/ContactPage";
+import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
 import CalcPage from "@/pages/CalcPage";
 import SaveResultsPage from "@/pages/SaveResultsPage";
 import AuthLoginPage from "@/pages/AuthLoginPage";
 import PortalIndexPage from "@/pages/PortalIndexPage";
-import PlaceholderPage from "@/pages/PlaceholderPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -16,15 +20,13 @@ export default function App() {
       <Routes>
         <Route element={<MarketingLayout />}>
           <Route index element={<HomePage />} />
-          <Route
-            path="/how-it-works"
-            element={<PlaceholderPage title="How it works" />}
-          />
-          <Route path="/faq" element={<PlaceholderPage title="FAQ" />} />
-          <Route path="/contact" element={<PlaceholderPage title="Contact" />} />
-          <Route path="/privacy" element={<PlaceholderPage title="Privacy" />} />
-          <Route path="/terms" element={<PlaceholderPage title="Terms" />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/faq" element={<FaqPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/calc" element={<CalcPage />} />
+          <Route path="/calc/results" element={<CalcPage />} />
           <Route path="/calc/save" element={<SaveResultsPage />} />
         </Route>
 
@@ -44,4 +46,3 @@ export default function App() {
     </HashRouter>
   );
 }
-

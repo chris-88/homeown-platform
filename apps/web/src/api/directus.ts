@@ -11,6 +11,16 @@ export type DirectusErrorResponse = {
   }>;
 };
 
+export class DirectusRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DirectusRequestError";
+  }
+}
+
 function joinUrl(baseUrl: string, path: string): string {
   const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
   const p = path.startsWith("/") ? path : `/${path}`;
@@ -58,7 +68,7 @@ export class DirectusClient {
       const message =
         maybeDirectus.errors?.[0]?.message ??
         `Directus request failed (${res.status})`;
-      throw new Error(message);
+      throw new DirectusRequestError(res.status, message);
     }
 
     return data as TResponse;
@@ -79,4 +89,3 @@ export class DirectusClient {
     return res.data;
   }
 }
-

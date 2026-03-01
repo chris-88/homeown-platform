@@ -26,3 +26,8 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+## Epic 02 (calculator) — data guardrails
+
+- Anonymous-first: no identifying inputs.
+- Snapshot writes go to Directus `calculator_snapshots` with strict numeric/enum schemas (see `src/calc/model.ts`).
