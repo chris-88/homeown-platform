@@ -39,6 +39,22 @@ bash scripts/apply.sh
 
 These are the minimum backend requirements for the anonymous-first calculator in `apps/web`.
 
+### Quick setup (recommended)
+
+From this folder:
+
+```bash
+set -a; source .env; set +a
+bash scripts/bootstrap-epic02.sh
+bash scripts/snapshot.sh
+```
+
+If you just added/changed hook extensions under `extensions/`, restart Directus:
+
+```bash
+docker compose restart directus
+```
+
 ### Collections
 
 Create collections per the canonical spec in the docs repo:
@@ -65,10 +81,11 @@ Goal: whenever `calculator_snapshots` is created/updated (debounced by the web a
 - payload includes `anon_session_id`, `calc_version`, and a small summary of outputs (no free-text, no identifying fields)
 
 Implementation approach (MVP):
-- Trigger: items create + items update on `calculator_snapshots`
+- Implemented as a Directus **hook extension** in `ops/directus/extensions/homeown-epic02-hooks`.
+- Trigger: `items.create` + `items.update` on `calculator_snapshots`
 - Step: read the updated snapshot (by key)
 - Step: create an `events` item from snapshot fields
-- Optional volume control: read the most recent event for the session and only emit if the output summary changed
+- Volume control: compute a deterministic signature of the output summary and store it in `calculator_snapshots.results_presented_signature` (staff-only). Only emit an event when the signature changes.
 
 ### Flow 2 — 30-day retention (anonymous snapshots)
 
@@ -76,7 +93,14 @@ Goal: delete only anonymous snapshots after 30 days:
 - delete where `client_id IS NULL` and `date_updated < now() - 30 days`
 - schedule daily (MVP)
 
-If you prefer cron (instead of a Directus schedule flow), you can run:
+Implementation approach (MVP):
+- Implemented as a scheduled hook inside Directus (`ops/directus/extensions/homeown-epic02-hooks`).
+- Config via env vars:
+  - `HOMEOWN_RETENTION_ENABLED` (default `true`)
+  - `HOMEOWN_RETENTION_DAYS` (default `30`)
+  - `HOMEOWN_RETENTION_CRON` (default `0 3 * * *` UTC; quote this value in `.env` because it contains spaces)
+
+Manual fallback (optional) — you can run:
 
 ```bash
 set -a; source .env; set +a

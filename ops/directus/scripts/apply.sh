@@ -12,6 +12,11 @@ if [[ ! -f "$SNAPSHOT_FILE" ]]; then
   exit 1
 fi
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Missing required command: jq" >&2
+  exit 1
+fi
+
 token="$(
   curl -sS -X POST "${DIRECTUS_URL}/auth/login" \
     -H "Content-Type: application/json" \
@@ -24,13 +29,47 @@ if [[ -z "$token" || "$token" == "null" ]]; then
   exit 1
 fi
 
-payload="$(jq -n --slurpfile snapshot "$SNAPSHOT_FILE" '{ snapshot: $snapshot[0] }')"
+schema="$(jq -c '(.data // .)' "$SNAPSHOT_FILE")"
 
-curl -sS -X POST "${DIRECTUS_URL}/schema/apply" \
-  -H "Authorization: Bearer ${token}" \
-  -H "Content-Type: application/json" \
-  -d "$payload" \
-  | jq "."
+resp="$(
+  curl -sS -X POST "${DIRECTUS_URL}/schema/diff" \
+    -H "Authorization: Bearer ${token}" \
+    -H "Content-Type: application/json" \
+    -d "$schema" \
+    -w $'\n%{http_code}'
+)"
 
-echo "Applied snapshot: $SNAPSHOT_FILE"
+status="${resp##*$'\n'}"
+body="${resp%$'\n'*}"
 
+if [[ "$status" == "204" ]]; then
+  echo "✓ schema already up to date (no diff)"
+  exit 0
+fi
+
+if [[ "$status" != "200" ]]; then
+  echo "Failed to compute schema diff (status ${status}):" >&2
+  echo "$body" | jq "." >&2 || true
+  exit 1
+fi
+
+diff_data="$(echo "$body" | jq -c '.data')"
+
+resp2="$(
+  curl -sS -X POST "${DIRECTUS_URL}/schema/apply" \
+    -H "Authorization: Bearer ${token}" \
+    -H "Content-Type: application/json" \
+    -d "$diff_data" \
+    -w $'\n%{http_code}'
+)"
+
+status2="${resp2##*$'\n'}"
+body2="${resp2%$'\n'*}"
+
+if [[ "$status2" != "204" && "$status2" != "200" ]]; then
+  echo "Failed to apply schema diff (status ${status2}):" >&2
+  echo "$body2" | jq "." >&2 || true
+  exit 1
+fi
+
+echo "✓ applied snapshot: $SNAPSHOT_FILE"
